@@ -20,8 +20,6 @@
       max-width:300px;
       text-align:center;
       padding:1rem;
-      border-radius:8px;
-      background:white;
     }
   </style>
 </head>
@@ -70,14 +68,16 @@
 </div>
 
 <script>
-  // ===== SHA-256 login =====
+  // ===== SHA-256 =====
   async function sha256(message){
     const msgBuffer = new TextEncoder().encode(message);
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map(b => b.toString(16).padStart(2,'0')).join('');
   }
-  const HASHED_PASSWORD = "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"; // admin123
+
+  // This is hash of "admin123"
+  const HASHED_PASSWORD = "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3";
 
   // ===== MODALS =====
   const confirmModal = document.getElementById('confirmModal');
@@ -100,7 +100,7 @@
 
   function showNotification(message){
     notifyMessage.textContent = message;
-    notifyModal.style.display="flex";
+    notifyModal.style.display = "flex";
     notifyOk.onclick = ()=>{ notifyModal.style.display="none"; };
   }
 
@@ -110,10 +110,13 @@
   const loginDiv = document.getElementById('loginDiv');
   const adminPanel = document.getElementById('adminPanel');
 
-  async function handleLogin() {
-    const password = passwordInput.value.trim();
-    if(!password){ alert("Please enter a password!"); return; }
+  loginBtn.addEventListener('click', async ()=>{
+    const password = passwordInput.value.trim(); // trim whitespace
     const hash = await sha256(password);
+    console.log("Password entered:", password);
+    console.log("Computed hash:", hash);
+    console.log("Expected hash:", HASHED_PASSWORD);
+
     if(hash === HASHED_PASSWORD){
       sessionStorage.setItem('loggedIn','true');
       loginDiv.style.display="none";
@@ -121,20 +124,13 @@
       renderPosts();
     } else {
       alert("Incorrect password!");
-      console.log("Password entered:", password);
-      console.log("Computed hash:", hash);
     }
-  }
-  loginBtn.addEventListener('click', handleLogin);
+  });
 
-  // Auto-login if session exists
-  (async function(){
-    if(sessionStorage.getItem('loggedIn') === 'true'){
-      loginDiv.style.display="none";
-      adminPanel.style.display="block";
-      renderPosts();
-    }
-  })();
+  if(sessionStorage.getItem('loggedIn') === 'true'){
+    loginDiv.style.display="none";
+    adminPanel.style.display="block";
+  }
 
   // ===== POSTS =====
   const form = document.getElementById('postForm');
@@ -143,7 +139,7 @@
   const cancelEditBtn = document.getElementById('cancelEditBtn');
 
   const MAX_POSTS = 10;
-  const MAX_SIZE = 3*1024*1024; // 3MB
+  const MAX_SIZE = 3*1024*1024;
   const MAX_WIDTH = 1024;
   const MAX_HEIGHT = 1024;
 
