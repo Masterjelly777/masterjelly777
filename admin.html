@@ -20,6 +20,8 @@
       max-width:300px;
       text-align:center;
       padding:1rem;
+      border-radius:8px;
+      background:white;
     }
   </style>
 </head>
@@ -75,7 +77,7 @@
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map(b => b.toString(16).padStart(2,'0')).join('');
   }
-  const HASHED_PASSWORD = "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3";
+  const HASHED_PASSWORD = "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"; // admin123
 
   // ===== MODALS =====
   const confirmModal = document.getElementById('confirmModal');
@@ -108,21 +110,31 @@
   const loginDiv = document.getElementById('loginDiv');
   const adminPanel = document.getElementById('adminPanel');
 
-  loginBtn.addEventListener('click', async ()=>{
-    const password = passwordInput.value;
+  async function handleLogin() {
+    const password = passwordInput.value.trim();
+    if(!password){ alert("Please enter a password!"); return; }
     const hash = await sha256(password);
     if(hash === HASHED_PASSWORD){
       sessionStorage.setItem('loggedIn','true');
       loginDiv.style.display="none";
       adminPanel.style.display="block";
       renderPosts();
-    } else { alert("Incorrect password!"); }
-  });
-
-  if(sessionStorage.getItem('loggedIn') === 'true'){
-    loginDiv.style.display="none";
-    adminPanel.style.display="block";
+    } else {
+      alert("Incorrect password!");
+      console.log("Password entered:", password);
+      console.log("Computed hash:", hash);
+    }
   }
+  loginBtn.addEventListener('click', handleLogin);
+
+  // Auto-login if session exists
+  (async function(){
+    if(sessionStorage.getItem('loggedIn') === 'true'){
+      loginDiv.style.display="none";
+      adminPanel.style.display="block";
+      renderPosts();
+    }
+  })();
 
   // ===== POSTS =====
   const form = document.getElementById('postForm');
@@ -131,7 +143,7 @@
   const cancelEditBtn = document.getElementById('cancelEditBtn');
 
   const MAX_POSTS = 10;
-  const MAX_SIZE = 3*1024*1024;
+  const MAX_SIZE = 3*1024*1024; // 3MB
   const MAX_WIDTH = 1024;
   const MAX_HEIGHT = 1024;
 
@@ -240,4 +252,5 @@
 </script>
 
 </body>
-</html>
+  </html>
+  
