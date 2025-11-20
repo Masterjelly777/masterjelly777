@@ -398,8 +398,34 @@
     
     <!-- Template Javascript -->
     <script src="main.js"></script>
+    <script>
+        let posts = JSON.parse(localStorage.getItem('posts') || '[]');
+        
+        function renderPosts() {
+            const container = document.getElementById('posts');
+            container.innerHTML = '';
+            
+            posts.forEach(post => {
+                container.innerHTML += `
+  <div class="col-md-4 mb-4">
+    <div class="card">
+      ${post.image ? `<img src="${post.image}" class="card-img-top">` : ''}
+      <div class="card-body">
+        <h5 class="card-title" style="color: darkblue;">${post.title}</h5>
+        <p class="card-text" style="color: darkgreen;">${post.description}</p>
+        <p class="text-muted" style="color: gray;"><small>Posted on: ${post.date}</small></p>
+      </div>
+    </div>
+  </div>
+`;
+            });
+        }
+        
+        renderPosts();
+    </script>
 </body>
 
 
 </html>
+
 
