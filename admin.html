@@ -82,12 +82,12 @@ const HASHED_PASSWORD = "4ded3da94e01245f2a401bbbafb80128c80e4f6febeb04e1a684c25
 // GITHUB SETTINGS
 // ===============================
 const GITHUB_USER = "masterjelly777";   // <-- CHANGE THIS
-const GITHUB_REPO = "https://raw.githubusercontent.com/Masterjelly777/masterjelly777/main/posts.json";       // <-- CHANGE THIS
+const GITHUB_REPO = "masterjelly777";       // <-- CHANGE THIS
 const GITHUB_FILE = "posts.json";
 const TOKEN = "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";     // <-- CHANGE THIS (keep secret)
 
 const RAW_URL = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/${GITHUB_FILE}`;
-const API_URL = "https://api.github.com/repos/Masterjelly777/masterjelly777/contents/posts.json";
+const API_URL = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${GITHUB_FILE}`;
 
 // ===============================
 // LOAD POSTS FROM GITHUB
