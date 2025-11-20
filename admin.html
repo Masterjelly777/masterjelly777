@@ -8,7 +8,6 @@
     body { padding: 1rem; }
     #loginDiv { max-width: 300px; margin: auto; }
 
-    /* Modals hidden by default */
     #confirmModal, #notifyModal {
       display:none;
       position:fixed; top:0; left:0; width:100%; height:100%;
@@ -68,185 +67,233 @@
 </div>
 
 <script>
-  // ===== SHA-256 =====
-  async function sha256(message){
-    const msgBuffer = new TextEncoder().encode(message);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2,'0')).join('');
-  }
+// ===============================
+// PASSWORD HASH
+// ===============================
+async function sha256(message){
+  const msgBuffer = new TextEncoder().encode(message);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2,'0')).join('');
+}
+const HASHED_PASSWORD = "4ded3da94e01245f2a401bbbafb80128c80e4f6febeb04e1a684c2503a8d9dc2"; // admin123
 
-  // This is hash of "admin123"
-  const HASHED_PASSWORD = "4ded3da94e01245f2a401bbbafb80128c80e4f6febeb04e1a684c2503a8d9dc2";
+// ===============================
+// GITHUB SETTINGS
+// ===============================
+const GITHUB_USER = "masterjelly777";   // <-- CHANGE THIS
+const GITHUB_REPO = "https://raw.githubusercontent.com/Masterjelly777/masterjelly777/refs/heads/main/posts.json";       // <-- CHANGE THIS
+const GITHUB_FILE = "posts.json";
+const TOKEN = "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";     // <-- CHANGE THIS (keep secret)
 
-  // ===== MODALS =====
-  const confirmModal = document.getElementById('confirmModal');
-  const confirmMessage = document.getElementById('confirmMessage');
-  const confirmYes = document.getElementById('confirmYes');
-  const confirmNo = document.getElementById('confirmNo');
+const RAW_URL = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/${GITHUB_FILE}`;
+const API_URL = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${GITHUB_FILE}`;
 
-  const notifyModal = document.getElementById('notifyModal');
-  const notifyMessage = document.getElementById('notifyMessage');
-  const notifyOk = document.getElementById('notifyOk');
+// ===============================
+// LOAD POSTS FROM GITHUB
+// ===============================
+async function loadPosts() {
+  const res = await fetch(RAW_URL + "?cache=" + Date.now());
+  return await res.json();
+}
 
-  function showConfirm(message, callbackYes){
-    confirmMessage.textContent = message;
-    confirmModal.style.display = "flex";
-    function yesHandler(){ confirmModal.style.display="none"; confirmYes.removeEventListener('click', yesHandler); confirmNo.removeEventListener('click', noHandler); callbackYes(); }
-    function noHandler(){ confirmModal.style.display="none"; confirmYes.removeEventListener('click', yesHandler); confirmNo.removeEventListener('click', noHandler); }
-    confirmYes.addEventListener('click', yesHandler);
-    confirmNo.addEventListener('click', noHandler);
-  }
+// ===============================
+// SAVE POSTS TO GITHUB
+// ===============================
+async function savePostsToGitHub(posts) {
 
-  function showNotification(message){
-    notifyMessage.textContent = message;
-    notifyModal.style.display = "flex";
-    notifyOk.onclick = ()=>{ notifyModal.style.display="none"; };
-  }
+  const getRes = await fetch(API_URL);
+  const fileData = await getRes.json();
 
-  // ===== LOGIN =====
-  const loginBtn = document.getElementById('loginBtn');
-  const passwordInput = document.getElementById('password');
-  const loginDiv = document.getElementById('loginDiv');
-  const adminPanel = document.getElementById('adminPanel');
+  const updatedContent = btoa(JSON.stringify(posts, null, 2));
 
-  loginBtn.addEventListener('click', async ()=>{
-    const password = passwordInput.value.trim(); // trim whitespace
-    const hash = await sha256(password);
-    console.log("Password entered:", password);
-    console.log("Computed hash:", hash);
-    console.log("Expected hash:", HASHED_PASSWORD);
-
-    if(hash === HASHED_PASSWORD){
-      sessionStorage.setItem('loggedIn','true');
-      loginDiv.style.display="none";
-      adminPanel.style.display="block";
-      renderPosts();
-    } else {
-      alert("Incorrect password!");
-    }
+  const res = await fetch(API_URL, {
+    method: "PUT",
+    headers: {
+      "Authorization": `token ${TOKEN}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      message: "Update posts",
+      content: updatedContent,
+      sha: fileData.sha
+    })
   });
 
-  if(sessionStorage.getItem('loggedIn') === 'true'){
+  return res.ok;
+}
+
+// ===============================
+// MODALS
+// ===============================
+const confirmModal = document.getElementById('confirmModal');
+const confirmMessage = document.getElementById('confirmMessage');
+const confirmYes = document.getElementById('confirmYes');
+const confirmNo = document.getElementById('confirmNo');
+function showConfirm(message, callbackYes){
+  confirmMessage.textContent = message;
+  confirmModal.style.display = "flex";
+  function yesHandler(){ confirmModal.style.display="none"; cleanup(); callbackYes(); }
+  function noHandler(){ confirmModal.style.display="none"; cleanup(); }
+  function cleanup(){
+    confirmYes.removeEventListener('click', yesHandler);
+    confirmNo.removeEventListener('click', noHandler);
+  }
+  confirmYes.addEventListener('click', yesHandler);
+  confirmNo.addEventListener('click', noHandler);
+}
+
+const notifyModal = document.getElementById('notifyModal');
+const notifyMessage = document.getElementById('notifyMessage');
+document.getElementById('notifyOk').onclick = () => notifyModal.style.display="none";
+function showNotification(message){
+  notifyMessage.textContent = message;
+  notifyModal.style.display = "flex";
+}
+
+// ===============================
+// LOGIN
+// ===============================
+const loginBtn = document.getElementById('loginBtn');
+const passwordInput = document.getElementById('password');
+const loginDiv = document.getElementById('loginDiv');
+const adminPanel = document.getElementById('adminPanel');
+
+loginBtn.addEventListener('click', async ()=>{
+  const password = passwordInput.value.trim();
+  const hash = await sha256(password);
+
+  if(hash === HASHED_PASSWORD){
+    sessionStorage.setItem('loggedIn','true');
     loginDiv.style.display="none";
     adminPanel.style.display="block";
+    posts = await loadPosts();
+    renderPosts();
+  } else {
+    alert("Incorrect password!");
   }
+});
 
-  // ===== POSTS =====
-  const form = document.getElementById('postForm');
-  const remainingUploadsEl = document.getElementById('remainingUploads');
-  const uploadBtn = document.getElementById('uploadBtn');
-  const cancelEditBtn = document.getElementById('cancelEditBtn');
+if(sessionStorage.getItem('loggedIn') === 'true'){
+  loginDiv.style.display="none";
+  adminPanel.style.display="block";
+}
 
-  const MAX_POSTS = 10;
-  const MAX_SIZE = 3*1024*1024;
-  const MAX_WIDTH = 1024;
-  const MAX_HEIGHT = 1024;
+// ===============================
+// POSTS LOGIC
+// ===============================
+let posts = [];
+let editIndex = -1;
 
-  let posts = JSON.parse(localStorage.getItem('posts') || '[]');
-  let editIndex = -1;
+const MAX_POSTS = 10;
 
-  function updateRemainingUploads(){
-    const remaining = MAX_POSTS - posts.length + (editIndex>=0?1:0);
-    remainingUploadsEl.textContent = `Remaining uploads: ${remaining}`;
-    uploadBtn.disabled = remaining<=0;
-  }
+loadPosts().then(data => {
+  posts = data;
+  renderPosts();
+});
 
-  function resizeImage(file,maxW,maxH,callback){
-    const reader = new FileReader();
-    reader.onload=function(e){
-      const img = new Image();
-      img.onload=function(){
-        let canvas=document.createElement('canvas');
-        let w=img.width, h=img.height;
-        if(w>maxW){ h*=maxW/w; w=maxW; }
-        if(h>maxH){ w*=maxH/h; h=maxH; }
-        canvas.width=w; canvas.height=h;
-        canvas.getContext("2d").drawImage(img,0,0,w,h);
-        callback(canvas.toDataURL("image/jpeg",0.8));
-      }
-      img.src=e.target.result;
+const form = document.getElementById('postForm');
+const remainingUploadsEl = document.getElementById('remainingUploads');
+const uploadBtn = document.getElementById('uploadBtn');
+const cancelEditBtn = document.getElementById('cancelEditBtn');
+
+function updateRemainingUploads(){
+  const rem = MAX_POSTS - posts.length + (editIndex >= 0 ? 1 : 0);
+  remainingUploadsEl.textContent = `Remaining uploads: ${rem}`;
+  uploadBtn.disabled = rem <= 0;
+}
+
+// Create or edit post
+form.addEventListener('submit', e => {
+  e.preventDefault();
+
+  const title = document.getElementById('title').value;
+  const description = document.getElementById('description').value;
+  const file = document.getElementById('image').files[0];
+
+  function save(imageBase64){
+    const date = new Date().toLocaleString();
+
+    if(editIndex >= 0){
+      posts[editIndex] = {
+        title, description,
+        image: imageBase64 || posts[editIndex].image,
+        date: posts[editIndex].date
+      };
+      editIndex = -1;
+      cancelEditBtn.style.display="none";
+    } else {
+      posts.push({ title, description, image: imageBase64, date });
     }
-    reader.readAsDataURL(file);
-  }
 
-  form.addEventListener('submit',(e)=>{
-    e.preventDefault();
-    const title = document.getElementById('title').value;
-    const description = document.getElementById('description').value;
-    const file = document.getElementById('image').files[0];
-
-    function savePost(imageBase64){
-      const date = new Date().toLocaleString();
-      if(editIndex>=0){
-        posts[editIndex]={title,description,image:imageBase64||posts[editIndex].image,date:posts[editIndex].date};
-        editIndex=-1;
-        cancelEditBtn.style.display="none";
-      } else { posts.push({title,description,image:imageBase64,date}); }
-      localStorage.setItem('posts',JSON.stringify(posts));
+    savePostsToGitHub(posts).then(() => {
       renderPosts();
       form.reset();
-      uploadBtn.textContent="Upload Post";
-      showNotification("Post saved successfully!");
-    }
+      uploadBtn.textContent = "Upload Post";
+      showNotification("Post saved!");
+    });
+  }
 
-    if(file){
-      if(file.size>MAX_SIZE){ alert("File too large! Max 3MB."); return; }
-      resizeImage(file,MAX_WIDTH,MAX_HEIGHT,savePost);
-    } else { savePost(null); }
-  });
+  if(file){
+    const reader = new FileReader();
+    reader.onload = e => save(e.target.result);
+    reader.readAsDataURL(file);
+  } else {
+    save(null);
+  }
+});
 
-  cancelEditBtn.addEventListener('click',()=>{
-    editIndex=-1;
-    form.reset();
-    cancelEditBtn.style.display="none";
-    uploadBtn.textContent="Upload Post";
-    updateRemainingUploads();
-  });
+// Render all posts
+function renderPosts(){
+  const container = document.getElementById('posts');
+  container.innerHTML = "";
 
-  function renderPosts(){
-    const container = document.getElementById('posts');
-    container.innerHTML="";
-    posts.forEach((post,index)=>{
-      container.innerHTML += `
+  posts.forEach((post, index) => {
+    container.innerHTML += `
       <div class="col-md-4 mb-4">
         <div class="card">
-          ${post.image?`<img src="${post.image}" class="card-img-top">`:''}
+          ${post.image ? `<img src="${post.image}" class="card-img-top">` : ""}
           <div class="card-body">
             <h5 class="card-title">${post.title}</h5>
             <p class="card-text">${post.description}</p>
-            <p class="text-muted"><small>Posted on: ${post.date}</small></p>
+            <p class="text-muted"><small>${post.date}</small></p>
             <button class="btn btn-warning btn-sm" onclick="editPost(${index})">Edit</button>
             <button class="btn btn-danger btn-sm" onclick="deletePost(${index})">Delete</button>
           </div>
         </div>
-      </div>`;
-    });
-    updateRemainingUploads();
-  }
-
-  function deletePost(index){
-    showConfirm("Are you sure you want to delete this post?", ()=>{
-      posts.splice(index,1);
-      localStorage.setItem('posts',JSON.stringify(posts));
-      renderPosts();
-    });
-  }
-
-  function editPost(index){
-    editIndex=index;
-    const post=posts[index];
-    document.getElementById('title').value=post.title;
-    document.getElementById('description').value=post.description;
-    cancelEditBtn.style.display="inline-block";
-    uploadBtn.textContent="Save Changes";
-    updateRemainingUploads();
-  }
+      </div>
+    `;
+  });
 
   updateRemainingUploads();
-  renderPosts();
-</script>
+}
 
+// Edit post
+function editPost(i){
+  editIndex = i;
+  const p = posts[i];
+  document.getElementById('title').value = p.title;
+  document.getElementById('description').value = p.description;
+  uploadBtn.textContent = "Save Changes";
+  cancelEditBtn.style.display="inline-block";
+}
+
+// Delete post
+function deletePost(i){
+  showConfirm("Delete this post?", () => {
+    posts.splice(i, 1);
+    savePostsToGitHub(posts).then(() => {
+      renderPosts();
+    });
+  });
+}
+
+cancelEditBtn.onclick = () => {
+  editIndex = -1;
+  form.reset();
+  cancelEditBtn.style.display = "none";
+  uploadBtn.textContent = "Upload Post";
+};
+</script>
 </body>
-  </html>
-  
+</html>
