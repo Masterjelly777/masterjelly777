@@ -8,24 +8,36 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
-      const { data: file } = await octokit.repos.getContent({ owner, repo, path });
-      const content = Buffer.from(file.content, "base64").toString();
-      return res.status(200).json({ posts: JSON.parse(content) });
+      try {
+        const { data: file } = await octokit.repos.getContent({ owner, repo, path });
+        const content = Buffer.from(file.content, "base64").toString();
+        return res.status(200).json({ posts: JSON.parse(content) });
+      } catch (err) {
+        if (err.status === 404) return res.status(200).json({ posts: [] });
+        throw err;
+      }
     }
 
     if (req.method === "POST") {
       const { posts } = req.body;
       if (!posts) return res.status(400).json({ error: "Missing posts data" });
 
-      const { data: file } = await octokit.repos.getContent({ owner, repo, path });
+      let sha;
+      try {
+        const { data: file } = await octokit.repos.getContent({ owner, repo, path });
+        sha = file.sha; // existing file
+      } catch (err) {
+        if (err.status !== 404) throw err; // real error
+        sha = undefined; // file doesn't exist yet
+      }
 
       await octokit.repos.createOrUpdateFileContents({
         owner,
         repo,
         path,
-        message: "Update posts",
+        message: sha ? "Update posts" : "Create posts.json",
         content: Buffer.from(JSON.stringify(posts, null, 2)).toString("base64"),
-        sha: file.sha,
+        sha, // undefined if new file
       });
 
       return res.status(200).json({ success: true });
@@ -34,6 +46,7 @@ export default async function handler(req, res) {
     res.setHeader("Allow", ["GET", "POST"]);
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   } catch (err) {
+    console.error("GitHub error:", err);
     return res.status(500).json({ error: "GitHub error", details: err.message });
   }
 }
