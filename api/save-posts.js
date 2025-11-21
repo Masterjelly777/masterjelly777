@@ -24,11 +24,12 @@ export default async function handler(req, res) {
 
       let sha;
       try {
-        const { data: file } = await octokit.repos.getContent({ owner, repo, path });
-        sha = file.sha; // existing file
-      } catch (err) {
-        if (err.status !== 404) throw err; // real error
-        sha = undefined; // file doesn't exist yet
+  const { data: file } = await octokit.repos.getContent({ owner, repo, path });
+  const content = Buffer.from(file.content, "base64").toString();
+  return res.status(200).json({ posts: JSON.parse(content) });
+} catch (err) {
+  if (err.status === 404) return res.status(200).json({ posts: [] });
+  throw err; // any other error
       }
 
       await octokit.repos.createOrUpdateFileContents({
