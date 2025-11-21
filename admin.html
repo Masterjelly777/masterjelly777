@@ -228,12 +228,14 @@ form.addEventListener('submit', async e => {
     }
 
     // Save and reload posts
-    savePostsToGitHub(posts).then(async () => {
-      posts = await loadPosts(); // reload latest from GitHub
-      renderPosts();
-      form.reset();
-      uploadBtn.textContent = "Upload Post";
-      showNotification("Post saved!");
+    savePostsToGitHub(posts).then(async (success) => {
+      if(success){                // ✅ Only show "Post saved!" if true
+        posts = await loadPosts();
+        renderPosts();
+        form.reset();
+        uploadBtn.textContent = "Upload Post";
+        showNotification("Post saved!");
+      }
     });
   }
 
@@ -245,7 +247,7 @@ form.addEventListener('submit', async e => {
     save(null);
   }
 });
-
+  
 // Render all posts
 function renderPosts(){
   const container = document.getElementById('posts');
