@@ -409,8 +409,11 @@
 const RAW_URL = "https://raw.githubusercontent.com/Masterjelly777/masterjelly777/main/posts.json";
         
 async function loadPosts() {
-  const res = await fetch(RAW_URL + "?cache=" + Date.now());
-  return await res.json();
+  const res = await fetch("/api/save-posts", {
+    method: "GET"
+  });
+  const data = await res.json();
+  return data.posts || [];
 }
 
 async function renderPosts() {
@@ -441,6 +444,7 @@ renderPosts();
 
 
 </html>
+
 
 
 
