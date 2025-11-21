@@ -19,16 +19,17 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "POST") {
+      if (!req.body) return res.status(400).json({ error: "Missing request body" });
       const { posts } = req.body;
       if (!posts) return res.status(400).json({ error: "Missing posts data" });
 
       let sha;
       try {
         const { data: file } = await octokit.repos.getContent({ owner, repo, path });
-        sha = file.sha; // get SHA if file exists
+        sha = file.sha; // existing file
       } catch (err) {
         if (err.status !== 404) throw err;
-        sha = undefined; // file doesn't exist yet
+        sha = undefined; // file doesn’t exist yet
       }
 
       await octokit.repos.createOrUpdateFileContents({
@@ -49,4 +50,5 @@ export default async function handler(req, res) {
     console.error("GitHub error:", err);
     return res.status(500).json({ error: "GitHub error", details: err.message });
   }
-}
+        }
+          
