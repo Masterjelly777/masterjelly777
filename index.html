@@ -408,24 +408,48 @@
     <script>
 const RAW_URL = "https://raw.githubusercontent.com/Masterjelly777/masterjelly777/main/posts.json";
 
- async function loadPosts() {
-  const res = await fetch("/api/save-posts", { method: "GET" });
-  if (!res.ok) {
-    console.error("Failed to load posts:", res.status, await res.text());
-    return [];
+function logMobile(msg, isError = false) {
+  let el = document.getElementById('mobileLog');
+  if (!el) {
+    el = document.createElement('pre');
+    el.id = 'mobileLog';
+    el.style.background = "#eee";
+    el.style.padding = "10px";
+    el.style.maxHeight = "200px";
+    el.style.overflow = "auto";
+    document.body.prepend(el);
   }
-  const data = await res.json();
-  return data.posts || [];
+  const line = document.createElement('div');
+  line.textContent = msg;
+  if (isError) line.style.color = 'red';
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
 }
 
+async function loadPosts() {
+  try {
+    const res = await fetch("/api/save-posts", { method: "GET" });
+    if (!res.ok) {
+      const text = await res.text();
+      logMobile(`Failed to load posts: ${res.status} - ${text}`, true);
+      return [];
+    }
+    const data = await res.json();
+    return data.posts || [];
+  } catch (err) {
+    logMobile("Error fetching posts: " + err, true);
+    return [];
+  }
+}
 
 async function renderPosts() {
   const posts = await loadPosts();
   const container = document.getElementById("posts");
   container.innerHTML = "";
 
+  let html = '';
   posts.forEach(post => {
-    container.innerHTML += `
+    html += `
       <div class="col-md-4 mb-4">
         <div class="card">
           ${post.image ? `<img src="${post.image}" class="card-img-top">` : ""}
@@ -438,13 +462,17 @@ async function renderPosts() {
       </div>
     `;
   });
+  container.innerHTML = html;
 }
 
+// Run the function
 renderPosts();
     </script>
+    
     
 </body>
 
 
 </html>
+
 
