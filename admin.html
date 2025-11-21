@@ -211,12 +211,19 @@ form.addEventListener('submit', e => {
   const description = document.getElementById('description').value;
   const file = document.getElementById('image').files[0];
 
+  // REQUIRE IMAGE FOR NEW POST
+  if (!file && editIndex === -1) {
+    showNotification("Please select an image.");
+    return;
+  }
+
   function save(imageBase64){
     const date = new Date().toLocaleString();
 
     if(editIndex >= 0){
       posts[editIndex] = {
-        title, description,
+        title,
+        description,
         image: imageBase64 || posts[editIndex].image,
         date: posts[editIndex].date
       };
