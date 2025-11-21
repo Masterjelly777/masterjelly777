@@ -79,46 +79,30 @@ async function sha256(message){
 const HASHED_PASSWORD = "4ded3da94e01245f2a401bbbafb80128c80e4f6febeb04e1a684c2503a8d9dc2"; // admin123
 
 // ===============================
-// GITHUB SETTINGS
-// ===============================
-const GITHUB_USER = "masterjelly777";   // <-- CHANGE THIS
-const GITHUB_REPO = "https://raw.githubusercontent.com/Masterjelly777/masterjelly777/refs/heads/main/posts.json";       // <-- CHANGE THIS
-const GITHUB_FILE = "posts.json";
-const TOKEN = "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";     // <-- CHANGE THIS (keep secret)
-
-const RAW_URL = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/${GITHUB_FILE}`;
-const API_URL = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${GITHUB_FILE}?ref=refs/heads/main`;
-
-// ===============================
 // LOAD POSTS FROM GITHUB
 // ===============================
+const RAW_URL = "https://raw.githubusercontent.com/Masterjelly777/masterjelly777/main/posts.json";
+
 async function loadPosts() {
   const res = await fetch(RAW_URL + "?cache=" + Date.now());
   return await res.json();
 }
 
 // ===============================
-// SAVE POSTS TO GITHUB
+// SAVE POSTS TO VERCEL BACKEND
 // ===============================
 async function savePostsToGitHub(posts) {
-
-  const getRes = await fetch(API_URL);
-  const fileData = await getRes.json();
-
-  const updatedContent = btoa(JSON.stringify(posts, null, 2));
-
-  const res = await fetch(API_URL, {
-    method: "PUT",
-    headers: {
-      "Authorization": `token ${TOKEN}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      message: "Update posts",
-      content: updatedContent,
-      sha: fileData.sha
-    })
+  const res = await fetch("/api/save-posts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ posts }),
   });
+
+  if (!res.ok) {
+    const msg = await res.text();
+    console.error("Upload failed:", msg);
+    showNotification("Upload failed. Check console.");
+  }
 
   return res.ok;
 }
@@ -130,6 +114,7 @@ const confirmModal = document.getElementById('confirmModal');
 const confirmMessage = document.getElementById('confirmMessage');
 const confirmYes = document.getElementById('confirmYes');
 const confirmNo = document.getElementById('confirmNo');
+
 function showConfirm(message, callbackYes){
   confirmMessage.textContent = message;
   confirmModal.style.display = "flex";
@@ -184,7 +169,6 @@ if(sessionStorage.getItem('loggedIn') === 'true'){
 // ===============================
 let posts = [];
 let editIndex = -1;
-
 const MAX_POSTS = 10;
 
 loadPosts().then(data => {
