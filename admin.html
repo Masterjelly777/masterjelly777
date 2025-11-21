@@ -6,44 +6,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <style>
-    body {
-      padding: 1rem;
+    body { padding: 1rem; }
+    #loginDiv { max-width: 300px; margin: auto; }
+    #confirmModal, #notifyModal {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.5); justify-content: center; align-items: center; z-index: 1000;
     }
-
-    #loginDiv {
-      max-width: 300px;
-      margin: auto;
-    }
-
-    #confirmModal,
-    #notifyModal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.5);
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-    }
-
-    #confirmModal .card,
-    #notifyModal .card {
-      max-width: 300px;
-      text-align: center;
-      padding: 1rem;
-    }
-
-    #mobileLog {
-      background: #eee;
-      padding: 10px;
-      max-height: 200px;
-      overflow: auto;
-      margin-bottom: 1rem;
-      font-size: 0.9rem;
-    }
+    #confirmModal .card, #notifyModal .card { max-width: 300px; text-align: center; padding: 1rem; }
+    #mobileLog { background: #eee; padding: 10px; max-height: 200px; overflow: auto; margin-bottom: 1rem; font-size: 0.9rem; }
   </style>
 </head>
 
@@ -85,7 +55,8 @@
     <form id="postForm">
       <input type="text" id="title" placeholder="Title" class="form-control mb-2" required>
       <textarea id="description" placeholder="Description" class="form-control mb-2"></textarea>
-      <input type="file" id="image" class="form-control mb-2" required>
+      <input type="file" id="image" class="form-control mb-2">
+      <input type="text" id="imageUrl" placeholder="Or image URL" class="form-control mb-2">
       <button type="submit" id="uploadBtn" class="btn btn-success mb-2">Upload Post</button>
       <button type="button" id="cancelEditBtn" class="btn btn-warning mb-2" style="display:none;">Cancel Edit</button>
     </form>
@@ -104,7 +75,7 @@
       line.textContent = msg;
       if (isError) line.style.color = 'red';
       el.appendChild(line);
-      el.scrollTop = el.scrollHeight; // auto scroll
+      el.scrollTop = el.scrollHeight;
     }
 
     // ===============================
@@ -113,8 +84,7 @@
     async function sha256(message) {
       const msgBuffer = new TextEncoder().encode(message);
       const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
     }
     const HASHED_PASSWORD = "4ded3da94e01245f2a401bbbafb80128c80e4f6febeb04e1a684c2503a8d9dc2"; // admin123
 
@@ -139,10 +109,7 @@
       confirmNo.addEventListener('click', noHandler);
     }
 
-    function showNotification(message) {
-      notifyMessage.textContent = message;
-      notifyModal.style.display = "flex";
-    }
+    function showNotification(message) { notifyMessage.textContent = message; notifyModal.style.display = "flex"; }
 
     // ===============================
     // LOGIN
@@ -216,39 +183,79 @@
       } catch (err) { logMobile("Upload error: " + err, true); showNotification("Upload failed. Check mobile log"); return false; }
     }
 
+    // Compress images before upload
+    async function compressImage(file, maxWidth = 800, maxHeight = 800, quality = 0.7) {
+      return new Promise(resolve => {
+        const img = new Image();
+        const reader = new FileReader();
+        reader.onload = e => img.src = e.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let { width, height } = img;
+          if (width > height && width > maxWidth) { height *= maxWidth / width; width = maxWidth; }
+          else if (height > width && height > maxHeight) { width *= maxHeight / height; height = maxHeight; }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
     form.addEventListener('submit', async e => {
       e.preventDefault();
       const title = document.getElementById('title').value;
       const description = document.getElementById('description').value;
       const file = document.getElementById('image').files[0];
-      if (!file && editIndex === -1) { showNotification("Please select an image."); return; }
+      const imageUrl = document.getElementById('imageUrl').value.trim();
 
-      function save(imageBase64) {
+      if (!file && !imageUrl && editIndex === -1) { showNotification("Please select an image or enter a URL."); return; }
+
+      async function save(imageData) {
         const date = new Date().toLocaleString();
-        if (editIndex >= 0) { posts[editIndex] = { title, description, image: imageBase64 || posts[editIndex].image, date: posts[editIndex].date }; editIndex = -1; cancelEditBtn.style.display = "none"; }
-        else posts.push({ title, description, image: imageBase64, date });
-        savePostsToGitHub(posts).then(async success => {
-          if (success) { posts = await loadPosts(); renderPosts(); form.reset(); uploadBtn.textContent = "Upload Post"; showNotification("Post saved!"); }
-        });
+        if (editIndex >= 0) { 
+          posts[editIndex] = { title, description, image: imageData || posts[editIndex].image, date: posts[editIndex].date };
+          editIndex = -1; cancelEditBtn.style.display = "none"; 
+        } else posts.push({ title, description, image: imageData, date });
+        const success = await savePostsToGitHub(posts);
+        if (success) { posts = await loadPosts(); renderPosts(); form.reset(); uploadBtn.textContent = "Upload Post"; showNotification("Post saved!"); }
       }
 
-      if (file) { const reader = new FileReader(); reader.onload = e => save(e.target.result); reader.readAsDataURL(file); } else save(null);
+      if (file) save(await compressImage(file));
+      else save(imageUrl);
     });
 
     function renderPosts() {
-      const container = document.getElementById('posts'); container.innerHTML = "";
+      const container = document.getElementById('posts'); 
+      container.innerHTML = "";
       posts.forEach((post, index) => {
         container.innerHTML += `<div class="col-md-4 mb-4"><div class="card">${post.image ? `<img src="${post.image}" class="card-img-top">` : ""}<div class="card-body"><h5 class="card-title">${post.title}</h5><p class="card-text">${post.description}</p><p class="text-muted"><small>${post.date}</small></p><button class="btn btn-warning btn-sm" onclick="editPost(${index})">Edit</button> <button class="btn btn-danger btn-sm" onclick="deletePost(${index})">Delete</button></div></div></div>`;
       });
       updateRemainingUploads();
     }
 
-    window.editPost = function (i) { editIndex = i; const p = posts[i]; document.getElementById('title').value = p.title; document.getElementById('description').value = p.description; uploadBtn.textContent = "Save Changes"; cancelEditBtn.style.display = "inline-block"; }
+    window.editPost = function(i) { 
+      editIndex = i; 
+      const p = posts[i]; 
+      document.getElementById('title').value = p.title; 
+      document.getElementById('description').value = p.description; 
+      uploadBtn.textContent = "Save Changes"; 
+      cancelEditBtn.style.display = "inline-block"; 
+    }
 
-    window.deletePost = function (i) { showConfirm("Delete this post?", async () => { posts.splice(i, 1); await savePostsToGitHub(posts); posts = await loadPosts(); renderPosts(); }); }
+    window.deletePost = function(i) { 
+      showConfirm("Delete this post?", async () => { 
+        posts.splice(i, 1); 
+        await savePostsToGitHub(posts); 
+        posts = await loadPosts(); 
+        renderPosts(); 
+      }); 
+    }
 
     cancelEditBtn.onclick = () => { editIndex = -1; form.reset(); cancelEditBtn.style.display = "none"; uploadBtn.textContent = "Upload Post"; }
+
   </script>
 </body>
-  </html>
-  
+</html>
