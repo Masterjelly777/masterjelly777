@@ -104,15 +104,29 @@ async function savePostsToGitHub(posts) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ posts }),
     });
+
+    const text = await res.text(); // get full response for debugging
     if (!res.ok) {
-      const msg = await res.text();
-      console.error("Upload failed:", msg);
-      showNotification("Upload failed. Check console.");
+      console.error("Upload failed:", res.status, text);
+      showNotification("Upload failed. Check console");
+      return false;
     }
-    return res.ok;
-  } catch(err) {
-    console.error(err);
-    showNotification("Upload failed. Check console.");
+
+    // Optional: parse JSON if valid
+    try {
+      const data = JSON.parse(text);
+      if (data.success) return true;
+      console.error("Upload failed: success=false", data);
+      showNotification("Upload failed. Check console");
+      return false;
+    } catch {
+      console.warn("Upload returned non-JSON, assuming success");
+      return true;
+    }
+
+  } catch (err) {
+    console.error("Upload error:", err);
+    showNotification("Upload failed. Check console");
     return false;
   }
 }
