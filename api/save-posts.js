@@ -8,20 +8,19 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
-      try {
-        const { data: file } = await octokit.repos.getContent({ owner, repo, path });
-        const content = Buffer.from(file.content, "base64").toString();
-        return res.status(200).json({ posts: JSON.parse(content) });
-      } catch (err) {
-        if (err.status === 404) return res.status(200).json({ posts: [] });
-        console.error("GET error:", err);
-        throw err;
-      }
+      const { data: file } = await octokit.repos.getContent({ owner, repo, path });
+      const content = Buffer.from(file.content, "base64").toString();
+      return res.status(200).json({ posts: JSON.parse(content) });
     }
 
     if (req.method === "POST") {
       const { posts } = req.body;
       if (!posts) return res.status(400).json({ error: "Missing posts data" });
+
+      const jsonString = JSON.stringify(posts, null, 2);
+      if (Buffer.byteLength(jsonString, "utf8") > 5_000_000) {
+        return res.status(413).json({ error: "Payload too large. Use image URLs instead of base64." });
+      }
 
       let sha;
       try {
@@ -30,12 +29,6 @@ export default async function handler(req, res) {
       } catch (err) {
         if (err.status !== 404) throw err;
         sha = undefined;
-      }
-
-      // Warn if payload too big
-      const jsonString = JSON.stringify(posts, null, 2);
-      if (Buffer.byteLength(jsonString, "utf8") > 5_000_000) { // 5MB limit
-        return res.status(413).json({ error: "Payload too large. Use image URLs instead of base64." });
       }
 
       await octokit.repos.createOrUpdateFileContents({
@@ -52,6 +45,7 @@ export default async function handler(req, res) {
 
     res.setHeader("Allow", ["GET", "POST"]);
     return res.status(405).end(`Method ${req.method} Not Allowed`);
+
   } catch (err) {
     console.error("GitHub error:", err);
     return res.status(500).json({ error: "GitHub error", details: err.message });
