@@ -1,273 +1,306 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <title>Admin Panel</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <style>
-    body { padding: 1rem; }
-    #loginDiv { max-width: 300px; margin: auto; }
-
-    #confirmModal, #notifyModal {
-      display:none;
-      position:fixed; top:0; left:0; width:100%; height:100%;
-      background:rgba(0,0,0,0.5);
-      justify-content:center; align-items:center;
-      z-index:1000;
+    body {
+      padding: 1rem;
     }
-    #confirmModal .card, #notifyModal .card {
-      max-width:300px;
-      text-align:center;
-      padding:1rem;
+    
+    #loginDiv {
+      max-width: 300px;
+      margin: auto;
+    }
+    
+    #confirmModal,
+    #notifyModal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    
+    #confirmModal .card,
+    #notifyModal .card {
+      max-width: 300px;
+      text-align: center;
+      padding: 1rem;
     }
   </style>
 </head>
-<body>
 
-<!-- Delete Confirmation Modal -->
-<div id="confirmModal">
-  <div class="card">
-    <p id="confirmMessage">Are you sure?</p>
-    <div class="d-flex justify-content-around mt-3">
-      <button id="confirmYes" class="btn btn-danger">Yes</button>
-      <button id="confirmNo" class="btn btn-secondary">No</button>
+<body>
+  
+  <!-- Delete Confirmation Modal -->
+  <div id="confirmModal">
+    <div class="card">
+      <p id="confirmMessage">Are you sure?</p>
+      <div class="d-flex justify-content-around mt-3">
+        <button id="confirmYes" class="btn btn-danger">Yes</button>
+        <button id="confirmNo" class="btn btn-secondary">No</button>
+      </div>
     </div>
   </div>
-</div>
-
-<!-- Upload Notification Modal -->
-<div id="notifyModal">
-  <div class="card">
-    <p id="notifyMessage"></p>
-    <button id="notifyOk" class="btn btn-primary mt-2">OK</button>
-  </div>
-</div>
-
-<!-- Login -->
-<h2 class="text-center">Admin Login</h2>
-<div id="loginDiv">
-  <input type="password" id="password" placeholder="Enter password" class="form-control mb-2">
-  <button id="loginBtn" class="btn btn-primary w-100">Login</button>
-</div>
-
-<!-- Admin Panel -->
-<div id="adminPanel" style="display:none;">
-  <h2>Create / Edit Post</h2>
-  <p id="remainingUploads" class="text-muted"></p>
-  <form id="postForm">
-    <input type="text" id="title" placeholder="Title" class="form-control mb-2" required>
-    <textarea id="description" placeholder="Description" class="form-control mb-2"></textarea>
-    <input type="file" id="image" class="form-control mb-2" required>
-    <button type="submit" id="uploadBtn" class="btn btn-success mb-2">Upload Post</button>
-    <button type="button" id="cancelEditBtn" class="btn btn-warning mb-2" style="display:none;">Cancel Edit</button>
-  </form>
-
-  <h2>All Posts</h2>
-  <div id="posts" class="row"></div>
-</div>
-
-<script>
-// ===============================
-// PASSWORD HASH
-// ===============================
-async function sha256(message){
-  const msgBuffer = new TextEncoder().encode(message);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2,'0')).join('');
-}
-const HASHED_PASSWORD = "4ded3da94e01245f2a401bbbafb80128c80e4f6febeb04e1a684c2503a8d9dc2"; // admin123
-
-// ===============================
-// LOAD POSTS FROM GITHUB
-// ===============================
-const RAW_URL = "https://raw.githubusercontent.com/Masterjelly777/masterjelly777/main/posts.json";
-
-async function loadPosts() {
-  const res = await fetch("/api/save-posts", { method: "GET" });
-  if (!res.ok) {
-    console.error("Failed to load posts:", res.status, await res.text());
-    return [];
-  }
-  const data = await res.json();
-  return data.posts || [];
-}
   
-
-// ===============================
-// SAVE POSTS TO VERCEL BACKEND
-// ===============================
-async function savePostsToGitHub(posts) {
-  try {
-    const res = await fetch("/api/save-posts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ posts }),
-    });
-
-    const text = await res.text(); // get full response for debugging
-    if (!res.ok) {
-      console.error("Upload failed:", res.status, text);
-      showNotification("Upload failed. Check console");
-      return false;
+  <!-- Upload Notification Modal -->
+  <div id="notifyModal">
+    <div class="card">
+      <p id="notifyMessage"></p>
+      <button id="notifyOk" class="btn btn-primary mt-2">OK</button>
+    </div>
+  </div>
+  
+  <!-- Login -->
+  <h2 class="text-center">Admin Login</h2>
+  <div id="loginDiv">
+    <input type="password" id="password" placeholder="Enter password" class="form-control mb-2">
+    <button id="loginBtn" class="btn btn-primary w-100">Login</button>
+  </div>
+  
+  <!-- Admin Panel -->
+  <div id="adminPanel" style="display:none;">
+    <h2>Create / Edit Post</h2>
+    <p id="remainingUploads" class="text-muted"></p>
+    <form id="postForm">
+      <input type="text" id="title" placeholder="Title" class="form-control mb-2" required>
+      <textarea id="description" placeholder="Description" class="form-control mb-2"></textarea>
+      <input type="file" id="image" class="form-control mb-2" required>
+      <button type="submit" id="uploadBtn" class="btn btn-success mb-2">Upload Post</button>
+      <button type="button" id="cancelEditBtn" class="btn btn-warning mb-2" style="display:none;">Cancel Edit</button>
+    </form>
+    
+    <h2>All Posts</h2>
+    <div id="posts" class="row"></div>
+  </div>
+  
+  <script>
+    // ===============================
+    // PASSWORD HASH
+    // ===============================
+    async function sha256(message) {
+      const msgBuffer = new TextEncoder().encode(message);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     }
-
-    // Optional: parse JSON if valid
-    try {
-      const data = JSON.parse(text);
-      if (data.success) return true;
-      console.error("Upload failed: success=false", data);
-      showNotification("Upload failed. Check console");
-      return false;
-    } catch {
-      console.warn("Upload returned non-JSON, assuming success");
-      return true;
+    const HASHED_PASSWORD = "4ded3da94e01245f2a401bbbafb80128c80e4f6febeb04e1a684c2503a8d9dc2"; // admin123
+    
+    // ===============================
+    // LOAD POSTS FROM GITHUB
+    // ===============================
+    const RAW_URL = "https://raw.githubusercontent.com/Masterjelly777/masterjelly777/main/posts.json";
+    
+    async function loadPosts() {
+      const res = await fetch("/api/save-posts", { method: "GET" });
+      if (!res.ok) {
+        const text = await res.text();
+        logMobile(`Failed to load posts: ${res.status} - ${text}`, true); // true = red error
+        return [];
+      }
+      
+      const data = await res.json();
+      return data.posts || [];
     }
-
-  } catch (err) {
-    console.error("Upload error:", err);
-    showNotification("Upload failed. Check console");
-    return false;
-  }
-}
-
-// ===============================
-// MODALS
-// ===============================
-const confirmModal = document.getElementById('confirmModal');
-const confirmMessage = document.getElementById('confirmMessage');
-const confirmYes = document.getElementById('confirmYes');
-const confirmNo = document.getElementById('confirmNo');
-
-function showConfirm(message, callbackYes){
-  confirmMessage.textContent = message;
-  confirmModal.style.display = "flex";
-  function yesHandler(){ confirmModal.style.display="none"; cleanup(); callbackYes(); }
-  function noHandler(){ confirmModal.style.display="none"; cleanup(); }
-  function cleanup(){
-    confirmYes.removeEventListener('click', yesHandler);
-    confirmNo.removeEventListener('click', noHandler);
-  }
-  confirmYes.addEventListener('click', yesHandler);
-  confirmNo.addEventListener('click', noHandler);
-}
-
-const notifyModal = document.getElementById('notifyModal');
-const notifyMessage = document.getElementById('notifyMessage');
-document.getElementById('notifyOk').onclick = () => notifyModal.style.display="none";
-function showNotification(message){
-  notifyMessage.textContent = message;
-  notifyModal.style.display = "flex";
-}
-
-// ===============================
-// LOGIN
-// ===============================
-const loginBtn = document.getElementById('loginBtn');
-const passwordInput = document.getElementById('password');
-const loginDiv = document.getElementById('loginDiv');
-const adminPanel = document.getElementById('adminPanel');
-
-loginBtn.addEventListener('click', async ()=>{
-  const password = passwordInput.value.trim();
-  const hash = await sha256(password);
-
-  if(hash === HASHED_PASSWORD){
-    sessionStorage.setItem('loggedIn','true');
-    loginDiv.style.display="none";
-    adminPanel.style.display="block";
-    posts = await loadPosts();
-    renderPosts();
-  } else {
-    alert("Incorrect password!");
-  }
-});
-
-if(sessionStorage.getItem('loggedIn') === 'true'){
-  loginDiv.style.display="none";
-  adminPanel.style.display="block";
-}
-
-// ===============================
-// POSTS LOGIC
-// ===============================
-let posts = [];
-let editIndex = -1;
-const MAX_POSTS = 10;
-
-async function initializePosts() {
-  posts = await loadPosts();
-  renderPosts();
-}
-initializePosts();
-
-const form = document.getElementById('postForm');
-const remainingUploadsEl = document.getElementById('remainingUploads');
-const uploadBtn = document.getElementById('uploadBtn');
-const cancelEditBtn = document.getElementById('cancelEditBtn');
-
-function updateRemainingUploads(){
-  const rem = MAX_POSTS - posts.length + (editIndex >= 0 ? 1 : 0);
-  remainingUploadsEl.textContent = `Remaining uploads: ${rem}`;
-  uploadBtn.disabled = rem <= 0;
-}
-
-// Create or edit post
-form.addEventListener('submit', async e => {
-  e.preventDefault();
-
-  const title = document.getElementById('title').value;
-  const description = document.getElementById('description').value;
-  const file = document.getElementById('image').files[0];
-
-  if (!file && editIndex === -1) {
-    showNotification("Please select an image.");
-    return;
-  }
-
-  function save(imageBase64){
-    const date = new Date().toLocaleString();
-
-    if(editIndex >= 0){
-      posts[editIndex] = {
-        title,
-        description,
-        image: imageBase64 || posts[editIndex].image,
-        date: posts[editIndex].date
-      };
-      editIndex = -1;
-      cancelEditBtn.style.display="none";
-    } else {
-      posts.push({ title, description, image: imageBase64, date });
+    
+    
+    // ===============================
+    // SAVE POSTS TO VERCEL BACKEND
+    // ===============================
+    async function savePostsToGitHub(posts) {
+      try {
+        const res = await fetch("/api/save-posts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ posts }),
+        });
+        
+        const text = await res.text(); // get full response for debugging
+        if (!res.ok) {
+          logMobile(`Upload failed: ${res.status} - ${text}`, true); // true = red text for errors
+          showNotification("Upload failed. Check mobile log");
+          return false;
+        }
+        
+        // Optional: parse JSON if valid
+        try {
+          const data = JSON.parse(text);
+          if (data.success) return true;
+          
+          logMobile("Upload failed: success=false - " + JSON.stringify(data), true); // true = red text
+          showNotification("Upload failed. Check mobile log");
+          return false;
+          
+        } catch {
+          logMobile("Upload returned non-JSON, assuming success", true); // true = red text for visibility
+          return true;
+        }
+        
+        
+      } catch (err) {
+        logMobile("Upload error: " + err, true); // true = red text
+        showNotification("Upload failed. Check mobile log");
+        return false;
+      }
+      
     }
-
-    // Save and reload posts
-    savePostsToGitHub(posts).then(async (success) => {
-      if(success){                // ✅ Only show "Post saved!" if true
+    
+    // ===============================
+    // MODALS
+    // ===============================
+    const confirmModal = document.getElementById('confirmModal');
+    const confirmMessage = document.getElementById('confirmMessage');
+    const confirmYes = document.getElementById('confirmYes');
+    const confirmNo = document.getElementById('confirmNo');
+    
+    function showConfirm(message, callbackYes) {
+      confirmMessage.textContent = message;
+      confirmModal.style.display = "flex";
+      
+      function yesHandler() {
+        confirmModal.style.display = "none";
+        cleanup();
+        callbackYes();
+      }
+      
+      function noHandler() {
+        confirmModal.style.display = "none";
+        cleanup();
+      }
+      
+      function cleanup() {
+        confirmYes.removeEventListener('click', yesHandler);
+        confirmNo.removeEventListener('click', noHandler);
+      }
+      confirmYes.addEventListener('click', yesHandler);
+      confirmNo.addEventListener('click', noHandler);
+    }
+    
+    const notifyModal = document.getElementById('notifyModal');
+    const notifyMessage = document.getElementById('notifyMessage');
+    document.getElementById('notifyOk').onclick = () => notifyModal.style.display = "none";
+    
+    function showNotification(message) {
+      notifyMessage.textContent = message;
+      notifyModal.style.display = "flex";
+    }
+    
+    // ===============================
+    // LOGIN
+    // ===============================
+    const loginBtn = document.getElementById('loginBtn');
+    const passwordInput = document.getElementById('password');
+    const loginDiv = document.getElementById('loginDiv');
+    const adminPanel = document.getElementById('adminPanel');
+    
+    loginBtn.addEventListener('click', async () => {
+      const password = passwordInput.value.trim();
+      const hash = await sha256(password);
+      
+      if (hash === HASHED_PASSWORD) {
+        sessionStorage.setItem('loggedIn', 'true');
+        loginDiv.style.display = "none";
+        adminPanel.style.display = "block";
         posts = await loadPosts();
         renderPosts();
-        form.reset();
-        uploadBtn.textContent = "Upload Post";
-        showNotification("Post saved!");
+      } else {
+        alert("Incorrect password!");
       }
     });
-  }
-
-  if(file){
-    const reader = new FileReader();
-    reader.onload = e => save(e.target.result);
-    reader.readAsDataURL(file);
-  } else {
-    save(null);
-  }
-});
-  
-// Render all posts
-function renderPosts(){
-  const container = document.getElementById('posts');
-  container.innerHTML = "";
-  posts.forEach((post, index) => {
-    container.innerHTML += `
+    
+    if (sessionStorage.getItem('loggedIn') === 'true') {
+      loginDiv.style.display = "none";
+      adminPanel.style.display = "block";
+    }
+    
+    // ===============================
+    // POSTS LOGIC
+    // ===============================
+    let posts = [];
+    let editIndex = -1;
+    const MAX_POSTS = 10;
+    
+    async function initializePosts() {
+      posts = await loadPosts();
+      renderPosts();
+    }
+    initializePosts();
+    
+    const form = document.getElementById('postForm');
+    const remainingUploadsEl = document.getElementById('remainingUploads');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+    
+    function updateRemainingUploads() {
+      const rem = MAX_POSTS - posts.length + (editIndex >= 0 ? 1 : 0);
+      remainingUploadsEl.textContent = `Remaining uploads: ${rem}`;
+      uploadBtn.disabled = rem <= 0;
+    }
+    
+    // Create or edit post
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      
+      const title = document.getElementById('title').value;
+      const description = document.getElementById('description').value;
+      const file = document.getElementById('image').files[0];
+      
+      if (!file && editIndex === -1) {
+        showNotification("Please select an image.");
+        return;
+      }
+      
+      function save(imageBase64) {
+        const date = new Date().toLocaleString();
+        
+        if (editIndex >= 0) {
+          posts[editIndex] = {
+            title,
+            description,
+            image: imageBase64 || posts[editIndex].image,
+            date: posts[editIndex].date
+          };
+          editIndex = -1;
+          cancelEditBtn.style.display = "none";
+        } else {
+          posts.push({ title, description, image: imageBase64, date });
+        }
+        
+        // Save and reload posts
+        savePostsToGitHub(posts).then(async (success) => {
+          if (success) { // ✅ Only show "Post saved!" if true
+            posts = await loadPosts();
+            renderPosts();
+            form.reset();
+            uploadBtn.textContent = "Upload Post";
+            showNotification("Post saved!");
+          }
+        });
+      }
+      
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = e => save(e.target.result);
+        reader.readAsDataURL(file);
+      } else {
+        save(null);
+      }
+    });
+    
+    // Render all posts
+    function renderPosts() {
+      const container = document.getElementById('posts');
+      container.innerHTML = "";
+      posts.forEach((post, index) => {
+        container.innerHTML += `
       <div class="col-md-4 mb-4">
         <div class="card">
           ${post.image ? `<img src="${post.image}" class="card-img-top">` : ""}
@@ -281,36 +314,46 @@ function renderPosts(){
         </div>
       </div>
     `;
-  });
-  updateRemainingUploads();
-}
-
-// Edit post
-function editPost(i){
-  editIndex = i;
-  const p = posts[i];
-  document.getElementById('title').value = p.title;
-  document.getElementById('description').value = p.description;
-  uploadBtn.textContent = "Save Changes";
-  cancelEditBtn.style.display="inline-block";
-}
-
-// Delete post
-function deletePost(i){
-  showConfirm("Delete this post?", async () => {
-    posts.splice(i, 1);
-    await savePostsToGitHub(posts);
-    posts = await loadPosts(); // reload latest
-    renderPosts();
-  });
-}
-
-cancelEditBtn.onclick = () => {
-  editIndex = -1;
-  form.reset();
-  cancelEditBtn.style.display = "none";
-  uploadBtn.textContent = "Upload Post";
-};
-</script>
+      });
+      updateRemainingUploads();
+    }
+    
+    // Edit post
+    function editPost(i) {
+      editIndex = i;
+      const p = posts[i];
+      document.getElementById('title').value = p.title;
+      document.getElementById('description').value = p.description;
+      uploadBtn.textContent = "Save Changes";
+      cancelEditBtn.style.display = "inline-block";
+    }
+    
+    // Delete post
+    function deletePost(i) {
+      showConfirm("Delete this post?", async () => {
+        posts.splice(i, 1);
+        await savePostsToGitHub(posts);
+        posts = await loadPosts(); // reload latest
+        renderPosts();
+      });
+    }
+    
+    cancelEditBtn.onclick = () => {
+      editIndex = -1;
+      form.reset();
+      cancelEditBtn.style.display = "none";
+      uploadBtn.textContent = "Upload Post";
+    };
+    
+    function logMobile(msg, isError = false) {
+      const el = document.getElementById('mobileLog');
+      const line = document.createElement('div');
+      line.textContent = msg;
+      if (isError) line.style.color = 'red';
+      el.appendChild(line);
+      el.scrollTop = el.scrollHeight; // auto scroll
+    }
+  </script>
 </body>
-</html>
+
+        </html>
