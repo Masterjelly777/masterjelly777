@@ -84,27 +84,36 @@ const HASHED_PASSWORD = "4ded3da94e01245f2a401bbbafb80128c80e4f6febeb04e1a684c25
 const RAW_URL = "https://raw.githubusercontent.com/Masterjelly777/masterjelly777/main/posts.json";
 
 async function loadPosts() {
-  const res = await fetch(RAW_URL + "?cache=" + Date.now());
-  return await res.json();
+  try {
+    const res = await fetch(RAW_URL + "?cache=" + Date.now());
+    return await res.json();
+  } catch (err) {
+    console.error("Failed to load posts:", err);
+    return [];
+  }
 }
 
 // ===============================
 // SAVE POSTS TO VERCEL BACKEND
 // ===============================
 async function savePostsToGitHub(posts) {
-  const res = await fetch("/api/save-posts", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ posts }),
-  });
-
-  if (!res.ok) {
-    const msg = await res.text();
-    console.error("Upload failed:", msg);
+  try {
+    const res = await fetch("/api/save-posts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ posts }),
+    });
+    if (!res.ok) {
+      const msg = await res.text();
+      console.error("Upload failed:", msg);
+      showNotification("Upload failed. Check console.");
+    }
+    return res.ok;
+  } catch(err) {
+    console.error(err);
     showNotification("Upload failed. Check console.");
+    return false;
   }
-
-  return res.ok;
 }
 
 // ===============================
@@ -171,10 +180,11 @@ let posts = [];
 let editIndex = -1;
 const MAX_POSTS = 10;
 
-loadPosts().then(data => {
-  posts = data;
+async function initializePosts() {
+  posts = await loadPosts();
   renderPosts();
-});
+}
+initializePosts();
 
 const form = document.getElementById('postForm');
 const remainingUploadsEl = document.getElementById('remainingUploads');
@@ -188,14 +198,13 @@ function updateRemainingUploads(){
 }
 
 // Create or edit post
-form.addEventListener('submit', e => {
+form.addEventListener('submit', async e => {
   e.preventDefault();
 
   const title = document.getElementById('title').value;
   const description = document.getElementById('description').value;
   const file = document.getElementById('image').files[0];
 
-  // REQUIRE IMAGE FOR NEW POST
   if (!file && editIndex === -1) {
     showNotification("Please select an image.");
     return;
@@ -217,7 +226,9 @@ form.addEventListener('submit', e => {
       posts.push({ title, description, image: imageBase64, date });
     }
 
-    savePostsToGitHub(posts).then(() => {
+    // Save and reload posts
+    savePostsToGitHub(posts).then(async () => {
+      posts = await loadPosts(); // reload latest from GitHub
       renderPosts();
       form.reset();
       uploadBtn.textContent = "Upload Post";
@@ -238,7 +249,6 @@ form.addEventListener('submit', e => {
 function renderPosts(){
   const container = document.getElementById('posts');
   container.innerHTML = "";
-
   posts.forEach((post, index) => {
     container.innerHTML += `
       <div class="col-md-4 mb-4">
@@ -255,7 +265,6 @@ function renderPosts(){
       </div>
     `;
   });
-
   updateRemainingUploads();
 }
 
@@ -271,11 +280,11 @@ function editPost(i){
 
 // Delete post
 function deletePost(i){
-  showConfirm("Delete this post?", () => {
+  showConfirm("Delete this post?", async () => {
     posts.splice(i, 1);
-    savePostsToGitHub(posts).then(() => {
-      renderPosts();
-    });
+    await savePostsToGitHub(posts);
+    posts = await loadPosts(); // reload latest
+    renderPosts();
   });
 }
 
