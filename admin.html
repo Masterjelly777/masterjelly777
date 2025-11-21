@@ -84,19 +84,15 @@ const HASHED_PASSWORD = "4ded3da94e01245f2a401bbbafb80128c80e4f6febeb04e1a684c25
 const RAW_URL = "https://raw.githubusercontent.com/Masterjelly777/masterjelly777/main/posts.json";
 
 async function loadPosts() {
-  try {
-    const res = await fetch("/api/save-posts", { method: "GET" });
-    if (!res.ok) {
-      console.error("Failed to load posts:", res.status, await res.text());
-      return [];
-    }
-    const data = await res.json();
-    return data.posts || [];
-  } catch (err) {
-    console.error("Network error loading posts:", err);
+  const res = await fetch("/api/save-posts", { method: "GET" });
+  if (!res.ok) {
+    console.error("Failed to load posts:", res.status, await res.text());
     return [];
   }
+  const data = await res.json();
+  return data.posts || [];
 }
+  
 
 // ===============================
 // SAVE POSTS TO VERCEL BACKEND
