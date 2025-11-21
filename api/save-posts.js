@@ -14,22 +14,28 @@ export default async function handler(req, res) {
         return res.status(200).json({ posts: JSON.parse(content) });
       } catch (err) {
         if (err.status === 404) return res.status(200).json({ posts: [] });
+        console.error("GET error:", err);
         throw err;
       }
     }
 
     if (req.method === "POST") {
-      if (!req.body) return res.status(400).json({ error: "Missing request body" });
       const { posts } = req.body;
       if (!posts) return res.status(400).json({ error: "Missing posts data" });
 
       let sha;
       try {
         const { data: file } = await octokit.repos.getContent({ owner, repo, path });
-        sha = file.sha; // existing file
+        sha = file.sha;
       } catch (err) {
         if (err.status !== 404) throw err;
-        sha = undefined; // file doesn’t exist yet
+        sha = undefined;
+      }
+
+      // Warn if payload too big
+      const jsonString = JSON.stringify(posts, null, 2);
+      if (Buffer.byteLength(jsonString, "utf8") > 5_000_000) { // 5MB limit
+        return res.status(413).json({ error: "Payload too large. Use image URLs instead of base64." });
       }
 
       await octokit.repos.createOrUpdateFileContents({
@@ -37,7 +43,7 @@ export default async function handler(req, res) {
         repo,
         path,
         message: sha ? "Update posts" : "Create posts.json",
-        content: Buffer.from(JSON.stringify(posts, null, 2)).toString("base64"),
+        content: Buffer.from(jsonString).toString("base64"),
         sha,
       });
 
@@ -50,5 +56,4 @@ export default async function handler(req, res) {
     console.error("GitHub error:", err);
     return res.status(500).json({ error: "GitHub error", details: err.message });
   }
-        }
-          
+}
